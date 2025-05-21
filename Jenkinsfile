@@ -5,7 +5,6 @@ pipeline {
         DOCKER_ID = "salioudiedhiou"
         DOCKER_IMAGE = "jenkins_examen"
         DOCKER_TAG = "v.${BUILD_ID}.0"
-        KUBECONFIG = "/home/passwd/jenkins_kube/config"
     }
 
     stages {
@@ -96,15 +95,17 @@ pipeline {
 }
 
 def deployToEnv(envName) {
-    sh """
-        mkdir -p .kube
-        cp \$KUBECONFIG .kube/config
-        chmod 600 .kube/config
+    withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG_FILE')]) {
+        sh """
+            mkdir -p ~/.kube
+            cp \$KUBECONFIG_FILE ~/.kube/config
+            chmod 600 ~/.kube/config
 
-        cp helm/values.yaml values.yml
-        sed -i 's+tag:.*+tag: ${DOCKER_TAG}+g' values.yml
+            cp helm/values.yaml values.yml
+            sed -i 's+tag:.*+tag: ${DOCKER_TAG}+g' values.yml
 
-        kubectl create namespace ${envName} --dry-run=client -o yaml | kubectl apply -f -
-        helm upgrade --install app-${envName} helm --values=values.yml --namespace ${envName}
-    """
+            kubectl create namespace ${envName} --dry-run=client -o yaml | kubectl apply -f -
+            helm upgrade --install app-${envName} helm --values=values.yml --namespace ${envName}
+        """
+    }
 }
