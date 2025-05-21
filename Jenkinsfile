@@ -62,27 +62,38 @@ pipeline {
             }
         }
         
-        ['dev', 'qa', 'staging'].each { env ->
-            stage("Déploiement en ${env}") {
-                environment {
-                    KUBECONFIG = credentials("config")
+        // Déploiement en dev
+        stage('Déploiement en dev') {
+            environment {
+                KUBECONFIG = credentials("config")
+            }
+            steps {
+                script {
+                    deployToEnvironment("dev")
                 }
-                steps {
-                    script {
-                        sh """
-                        mkdir -p ${KUBE_CONFIG_DIR}
-                        cat ${KUBECONFIG} > ${KUBE_CONFIG_DIR}/config
-                        chmod 600 ${KUBE_CONFIG_DIR}/config
-                        
-                        cp helm/values.yaml values-${env}.yml
-                        sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values-${env}.yml
-                        
-                        helm upgrade --install app helm \
-                            --values=values-${env}.yml \
-                            --namespace=${env} \
-                            --kubeconfig=${KUBE_CONFIG_DIR}/config
-                        """
-                    }
+            }
+        }
+        
+        // Déploiement en qa
+        stage('Déploiement en qa') {
+            environment {
+                KUBECONFIG = credentials("config")
+            }
+            steps {
+                script {
+                    deployToEnvironment("qa")
+                }
+            }
+        }
+        
+        // Déploiement en staging
+        stage('Déploiement en staging') {
+            environment {
+                KUBECONFIG = credentials("config")
+            }
+            steps {
+                script {
+                    deployToEnvironment("staging")
                 }
             }
         }
@@ -129,4 +140,21 @@ pipeline {
             echo 'Le pipeline a échoué. Veuillez vérifier les logs.'
         }
     }
+}
+
+// Fonction helper pour le déploiement
+def deployToEnvironment(env) {
+    sh """
+    mkdir -p ${env.KUBE_CONFIG_DIR}
+    cat ${env.KUBECONFIG} > ${env.KUBE_CONFIG_DIR}/config
+    chmod 600 ${env.KUBE_CONFIG_DIR}/config
+    
+    cp helm/values.yaml values-${env}.yml
+    sed -i "s+tag.*+tag: ${env.DOCKER_TAG}+g" values-${env}.yml
+    
+    helm upgrade --install app helm \
+        --values=values-${env}.yml \
+        --namespace=${env} \
+        --kubeconfig=${env.KUBE_CONFIG_DIR}/config
+    """
 }
