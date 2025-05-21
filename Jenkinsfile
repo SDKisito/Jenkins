@@ -33,7 +33,12 @@ pipeline {
         stage('Test Acceptance') {
             steps {
                 script {
-                    sh 'curl localhost'
+                    sh '''
+                        echo "⏳ Attente du démarrage de l'application..."
+                        sleep 5
+                        echo "✅ Test de l'application avec curl:"
+                        curl -f localhost || (echo "❌ Échec du test. Logs du conteneur:" && docker logs jenkins && exit 1)
+                    '''
                 }
             }
         }
@@ -45,6 +50,7 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        echo "🔐 Connexion à Docker Hub..."
                         docker login -u $DOCKER_ID -p $DOCKER_PASS
                         docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     '''
@@ -91,9 +97,8 @@ pipeline {
             }
             steps {
                 timeout(time: 15, unit: 'MINUTES') {
-                    input message: 'Do you want to deploy in production ?', ok: 'Yes'
+                    input message: '🚨 Déploiement en production ?', ok: 'Oui, déployer'
                 }
-
                 script {
                     deployWithHelm("prod", "helm")
                 }
