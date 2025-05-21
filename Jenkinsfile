@@ -66,7 +66,9 @@ pipeline {
                 script {
                     sh '''
                         mkdir -p .kube
+                        chmod 700 .kube
                         cp $KUBECONFIG .kube/config
+                        chmod 600 .kube/config
 
                         cp helm/values.yaml values.yml
                         sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml   # Mise à jour du tag dans Helm values
