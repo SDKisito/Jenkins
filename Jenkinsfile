@@ -64,7 +64,16 @@ pipeline {
             }
             steps {
                 script {
-                    deployWithHelm("dev", "helm")
+                    sh '''
+                        mkdir -p .kube
+                        cp $KUBECONFIG .kube/config
+
+                        cp helm/values.yaml values.yml
+                        sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
+
+                        kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+                        helm upgrade --install app-dev helm --values=values.yml --namespace dev
+                    '''
                 }
             }
         }
@@ -75,7 +84,16 @@ pipeline {
             }
             steps {
                 script {
-                    deployWithHelm("qa", "helm")
+                    sh '''
+                        mkdir -p .kube
+                        cp $KUBECONFIG .kube/config
+
+                        cp helm/values.yaml values.yml
+                        sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
+
+                        kubectl create namespace qa --dry-run=client -o yaml | kubectl apply -f -
+                        helm upgrade --install app-qa helm --values=values.yml --namespace qa
+                    '''
                 }
             }
         }
@@ -86,7 +104,16 @@ pipeline {
             }
             steps {
                 script {
-                    deployWithHelm("staging", "helm")
+                    sh '''
+                        mkdir -p .kube
+                        cp $KUBECONFIG .kube/config
+
+                        cp helm/values.yaml values.yml
+                        sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
+
+                        kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+                        helm upgrade --install app-staging helm --values=values.yml --namespace staging
+                    '''
                 }
             }
         }
@@ -100,22 +127,18 @@ pipeline {
                     input message: '🚨 Déploiement en production ?', ok: 'Oui, déployer'
                 }
                 script {
-                    deployWithHelm("prod", "helm")
+                    sh '''
+                        mkdir -p .kube
+                        cp $KUBECONFIG .kube/config
+
+                        cp helm/values.yaml values.yml
+                        sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
+
+                        kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
+                        helm upgrade --install app-prod helm --values=values.yml --namespace prod
+                    '''
                 }
             }
         }
     }
-}
-
-def deployWithHelm(namespace, chartPath) {
-    sh """
-        mkdir -p .kube
-        cp \$KUBECONFIG .kube/config
-
-        cp ${chartPath}/values.yaml values.yml
-        sed -i "s+tag:.*+tag: ${env.DOCKER_TAG}+g" values.yml
-
-        kubectl create namespace ${namespace} --dry-run=client -o yaml | kubectl apply -f -
-        helm upgrade --install app-${namespace} ${chartPath} --values=values.yml --namespace ${namespace}
-    """
 }
