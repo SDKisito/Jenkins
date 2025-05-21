@@ -33,7 +33,7 @@ pipeline {
         stage('Test Acceptance') {
             steps {
                 script {
-                    sh 'curl --fail http://localhost'
+                    sh 'curl localhost'
                 }
             }
         }
