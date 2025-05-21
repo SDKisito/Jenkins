@@ -31,6 +31,7 @@ pipeline {
             steps {
                 sh '''
                     echo "⏳ Attente du démarrage de l'application..."
+                    sleep 10
                     for i in {1..30}; do
                         curl -f http://localhost && break || sleep 1
                     done
