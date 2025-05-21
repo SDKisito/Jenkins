@@ -65,6 +65,7 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        rm -rf .kube
                         mkdir -p .kube
                         chmod 700 .kube
                         cp $KUBECONFIG .kube/config
