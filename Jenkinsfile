@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_ID = "salioudiedhiou"                  // Identifiant Docker Hub
-        DOCKER_IMAGE = "jenkins_examen"              // Nom de l'image Docker
-        DOCKER_TAG = "v.${BUILD_ID}.0"               // Tag de version basé sur l'ID de build Jenkins
+        DOCKER_ID = "salioudiedhiou"
+        DOCKER_IMAGE = "jenkins_examen"
+        DOCKER_TAG = "v.${BUILD_ID}.0"
     }
 
     stages {
@@ -13,8 +13,8 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        docker rm -f jenkins || true                        # Supprimer l'ancien conteneur s'il existe
-                        docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .   # Construire l'image Docker
+                        docker rm -f jenkins || true
+                        docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
                     '''
                 }
             }
@@ -24,7 +24,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        docker run -d -p 80:80 --name jenkins $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG   # Lancer le conteneur
+                        docker run -d -p 80:80 --name jenkins $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     '''
                 }
             }
@@ -37,7 +37,7 @@ pipeline {
                         echo "⏳ Attente du démarrage de l'application..."
                         sleep 5
                         echo "✅ Test de l'application avec curl:"
-                        curl -f localhost || (echo "❌ Échec du test. Logs du conteneur:" && docker logs jenkins && exit 1)   # Test de l'app
+                        curl -f localhost || (echo "❌ Échec du test. Logs du conteneur:" && docker logs jenkins && exit 1)
                     '''
                 }
             }
@@ -45,14 +45,14 @@ pipeline {
 
         stage('Docker Push') {
             environment {
-                DOCKER_PASS = credentials("Pass_Examen_Jenkins")   // Mot de passe Docker Hub stocké dans les credentials Jenkins
+                DOCKER_PASS = credentials("Pass_Examen_Jenkins")
             }
             steps {
                 script {
                     sh '''
                         echo "🔐 Connexion à Docker Hub..."
-                        docker login -u $DOCKER_ID -p $DOCKER_PASS     # Connexion Docker
-                        docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG   # Push de l'image
+                        docker login -u $DOCKER_ID -p $DOCKER_PASS
+                        docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     '''
                 }
             }
@@ -60,7 +60,7 @@ pipeline {
 
         stage('Deploy to dev') {
             environment {
-                KUBECONFIG = credentials("config")   // Fichier de config Kubernetes stocké dans Jenkins
+                KUBECONFIG = credentials("config")
             }
             steps {
                 script {
@@ -72,10 +72,10 @@ pipeline {
                         chmod 600 .kube/config
 
                         cp helm/values.yaml values.yml
-                        sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml   # Mise à jour du tag dans Helm values
+                        sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
 
                         kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
-                        helm upgrade --install app-dev helm --values=values.yml --namespace dev   # Déploiement Helm
+                        helm upgrade --install app-dev helm --values=values.yml --namespace dev
                     '''
                 }
             }
@@ -88,8 +88,11 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        rm -rf .kube
                         mkdir -p .kube
+                        chmod 700 .kube
                         cp $KUBECONFIG .kube/config
+                        chmod 600 .kube/config
 
                         cp helm/values.yaml values.yml
                         sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
@@ -108,8 +111,11 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        rm -rf .kube
                         mkdir -p .kube
+                        chmod 700 .kube
                         cp $KUBECONFIG .kube/config
+                        chmod 600 .kube/config
 
                         cp helm/values.yaml values.yml
                         sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
@@ -127,12 +133,15 @@ pipeline {
             }
             steps {
                 timeout(time: 15, unit: 'MINUTES') {
-                    input message: '🚨 Déploiement en production ?', ok: 'Oui, déployer'   // Validation manuelle
+                    input message: '🚨 Déploiement en production ?', ok: 'Oui, déployer'
                 }
                 script {
                     sh '''
+                        rm -rf .kube
                         mkdir -p .kube
+                        chmod 700 .kube
                         cp $KUBECONFIG .kube/config
+                        chmod 600 .kube/config
 
                         cp helm/values.yaml values.yml
                         sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
