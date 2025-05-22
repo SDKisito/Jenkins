@@ -5,6 +5,8 @@ pipeline {
         DOCKER_ID    = "salioudiedhiou"
         DOCKER_IMAGE = "jenkins_examen"
         DOCKER_TAG   = "v.${BUILD_ID}.0"
+        WIN_KUBE_PATH = "/mnt/c/Users/s.diedhiou/OneDrive - ITINOVA/Bureau/Jenkins_Examen"
+        KUBECONFIG = "${WIN_KUBE_PATH}/config"
     }
 
     stages {
@@ -65,54 +67,10 @@ pipeline {
             }
         }
 
-        stage("Préparer kubeconfig") {
-            steps {
-                script {
-                    sh '''
-                    rm -rf /var/lib/jenkins/.kube
-                    mkdir -p /var/lib/jenkins/.kube
-
-                    cp /home/passwd/.minikube/ca.crt /var/lib/jenkins/.kube/
-                    cp /home/passwd/.minikube/profiles/minikube/client.crt /var/lib/jenkins/.kube/
-                    cp /home/passwd/.minikube/profiles/minikube/client.key /var/lib/jenkins/.kube/
-
-                    cat <<EOF | sudo tee /var/lib/jenkins/.kube/config > /dev/null
-apiVersion: v1
-kind: Config
-clusters:
-- name: minikube
-  cluster:
-    server: https://192.168.58.2:8443
-    certificate-authority: /var/lib/jenkins/.kube/ca.crt
-contexts:
-- name: minikube
-  context:
-    cluster: minikube
-    namespace: default
-    user: minikube
-current-context: minikube
-users:
-- name: minikube
-  user:
-    client-certificate: /var/lib/jenkins/.kube/client.crt
-    client-key: /var/lib/jenkins/.kube/client.key
-EOF
-
-                    chown -R jenkins:jenkins /var/lib/jenkins/.kube
-                    chmod 600 /var/lib/jenkins/.kube/config
-                    chmod 600 /var/lib/jenkins/.kube/client.key
-                    chmod 600 /var/lib/jenkins/.kube/client.crt
-                    chmod 644 /var/lib/jenkins/.kube/ca.crt
-                    '''
-                }
-            }
-        }
-
         stage("Déploiement en dev") {
             steps {
                 script {
                     sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
                     helm upgrade --install app helm --values=values.yml --namespace dev --kubeconfig=$KUBECONFIG
@@ -125,7 +83,6 @@ EOF
             steps {
                 script {
                     sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
                     helm upgrade --install app helm --values=values.yml --namespace qa --kubeconfig=$KUBECONFIG
@@ -138,7 +95,6 @@ EOF
             steps {
                 script {
                     sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
                     helm upgrade --install app helm --values=values.yml --namespace staging --kubeconfig=$KUBECONFIG
@@ -154,7 +110,6 @@ EOF
                 }
                 script {
                     sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
                     helm upgrade --install app helm --values=values.yml --namespace prod --kubeconfig=$KUBECONFIG
