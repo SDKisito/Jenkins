@@ -69,12 +69,12 @@ pipeline {
             steps {
                 script {
                     sh '''
-                    sudo rm -rf /var/lib/jenkins/.kube
-                    sudo mkdir -p /var/lib/jenkins/.kube
+                    rm -rf /var/lib/jenkins/.kube
+                    mkdir -p /var/lib/jenkins/.kube
 
-                    sudo cp /home/passwd/.minikube/ca.crt /var/lib/jenkins/.kube/
-                    sudo cp /home/passwd/.minikube/profiles/minikube/client.crt /var/lib/jenkins/.kube/
-                    sudo cp /home/passwd/.minikube/profiles/minikube/client.key /var/lib/jenkins/.kube/
+                    cp /home/passwd/.minikube/ca.crt /var/lib/jenkins/.kube/
+                    cp /home/passwd/.minikube/profiles/minikube/client.crt /var/lib/jenkins/.kube/
+                    cp /home/passwd/.minikube/profiles/minikube/client.key /var/lib/jenkins/.kube/
 
                     cat <<EOF | sudo tee /var/lib/jenkins/.kube/config > /dev/null
 apiVersion: v1
