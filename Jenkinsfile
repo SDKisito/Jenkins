@@ -60,7 +60,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                    echo $DOCKER_PASS | docker login -u $DOCKER_ID --password-stdin
+                    docker login -u $DOCKER_ID -p $DOCKER_PASS
                     docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     '''
                 }
@@ -68,6 +68,7 @@ pipeline {
         }
 
         stage("Déploiement en dev") {
+
             steps {
                 script {
                     sh '''
@@ -80,6 +81,7 @@ pipeline {
         }
 
         stage("Déploiement en QA") {
+
             steps {
                 script {
                     sh '''
