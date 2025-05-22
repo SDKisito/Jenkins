@@ -1,144 +1,152 @@
 pipeline {
-    agent any
-
-    environment {
-        DOCKER_ID = "salioudiedhiou"
-        DOCKER_IMAGE = "jenkins_examen"
-        DOCKER_TAG = "v.${BUILD_ID}.0"
-        KUBE_CONFIG_DIR = "${WORKSPACE}/.kube"
-    }
-
-    stages {
-        stage('Nettoyage préliminaire') {
-            steps {
-                script {
-                    sh 'docker rm -f jenkins || true'
-                }
-            }
-        }
-
-        stage('Construction Docker') {
-            steps {
-                sh "docker build -t ${DOCKER_ID}/${DOCKER_IMAGE}:${DOCKER_TAG} ."
-            }
-        }
-
-        stage('Exécution du conteneur') {
-            steps {
-                sh """
-                    docker run -d -p 80:80 --name jenkins ${DOCKER_ID}/${DOCKER_IMAGE}:${DOCKER_TAG}
-                    sleep 10
-                """
-            }
-        }
-
-        stage('Test de validation') {
-            steps {
-                sh "curl -f localhost || (echo 'Le test a échoué' && exit 1)"
-            }
-        }
-
-        stage('Envoi sur Docker Hub') {
-            environment {
-                DOCKER_PASS = credentials("Pass_Examen_Jenkins")
-            }
-            steps {
-                sh """
-                    echo "${DOCKER_PASS}" | docker login -u ${DOCKER_ID} --password-stdin
-                    docker push ${DOCKER_ID}/${DOCKER_IMAGE}:${DOCKER_TAG}
-                """
-            }
-        }
-
-        stage('Déploiement en dev') {
-            environment {
-                KUBECONFIG_CRED = credentials("config")
-            }
-            steps {
-                script {
-                    deployToEnvironment("dev", DOCKER_TAG, KUBECONFIG_CRED)
-                }
-            }
-        }
-
-        stage('Déploiement en qa') {
-            environment {
-                KUBECONFIG_CRED = credentials("config")
-            }
-            steps {
-                script {
-                    deployToEnvironment("qa", DOCKER_TAG, KUBECONFIG_CRED)
-                }
-            }
-        }
-
-        stage('Déploiement en staging') {
-            environment {
-                KUBECONFIG_CRED = credentials("config")
-            }
-            steps {
-                script {
-                    deployToEnvironment("staging", DOCKER_TAG, KUBECONFIG_CRED)
-                }
-            }
-        }
-
-        stage('Déploiement en production') {
-            environment {
-                KUBECONFIG_CRED = credentials("config")
-            }
-            steps {
-                timeout(time: 15, unit: "MINUTES") {
-                    input message: "Confirmez le déploiement en production ?", ok: "Déployer"
-                }
-
-                script {
-                    sh """
-                        mkdir -p ${KUBE_CONFIG_DIR}
-                        cp ${KUBECONFIG_CRED} ${KUBE_CONFIG_DIR}/config
-                        chmod 600 ${KUBE_CONFIG_DIR}/config
-
-                        cp helm/values.yaml values-prod.yml
-                        sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values-prod.yml
-
-                        helm upgrade --install app helm \
-                            --values=values-prod.yml \
-                            --namespace=prod \
-                            --kubeconfig=${KUBE_CONFIG_DIR}/config
-                    """
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            sh 'docker rm -f jenkins || true'
-            sh "rm -rf ${KUBE_CONFIG_DIR} || true"
-        }
-        success {
-            echo 'Pipeline exécuté avec succès!'
-        }
-        failure {
-            echo 'Le pipeline a échoué. Veuillez vérifier les logs.'
-        }
-    }
+environment { // Declaration of environment variables
+DOCKER_ID = "salioudiedhiou"  // replace this with your docker-id
+DOCKER_IMAGE = "jenkins_examen"
+DOCKER_TAG = "v.${BUILD_ID}.0" // we will tag our images with the current build in order to increment the value by 1 with each new build
 }
+agent any // Jenkins will be able to select all available agents
+stages {
+        stage(' Docker Build'){ // docker build image stage
+            steps {
+                script {
+                sh '''
+                 docker rm -f jenkins
+                 docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
+                sleep 6
+                '''
+                }
+            }
+        }
+        stage('Docker run'){ // run container from our builded image
+                steps {
+                    script {
+                    sh '''
+                    docker run -d -p 80:80 --name jenkins $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+                    sleep 10
+                    '''
+                    }
+                }
+            }
 
-// Fonction helper corrigée
-def deployToEnvironment(String envName, String dockerTag, String kubeConfigFile) {
-    def configPath = "${env.KUBE_CONFIG_DIR}/config"
-    sh """
-        mkdir -p ${env.KUBE_CONFIG_DIR}
-        cp ${kubeConfigFile} ${configPath}
-        chmod 600 ${configPath}
+        stage('Test Acceptance'){ // we launch the curl command to validate that the container responds to the request
+            steps {
+                    script {
+                    sh '''
+                    curl localhost
+                    '''
+                    }
+            }
 
-        cp helm/values.yaml values-${envName}.yml
-        sed -i "s+tag.*+tag: ${dockerTag}+g" values-${envName}.yml
+        }
+        stage('Docker Push'){ //we pass the built image to our docker hub account
+            environment
+            {
+                DOCKER_PASS = credentials("Pass_Examen_Jenkins") // we retrieve  docker password from secret text called docker_hub_pass saved on jenkins
+            }
 
-        helm upgrade --install app helm \
-            --values=values-${envName}.yml \
-            --namespace=${envName} \
-            --kubeconfig=${configPath}
-    """
+            steps {
+
+                script {
+                sh '''
+                docker login -u $DOCKER_ID -p $DOCKER_PASS
+                docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+                '''
+                }
+            }
+
+        }
+
+stage('Deploiement en dev'){
+        environment
+        {
+        KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
+        }
+            steps {
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                ls
+                cat $KUBECONFIG > .kube/config
+                cp helm/values.yaml values.yml
+                cat values.yml
+                sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+                helm upgrade --install app helm --values=values.yml --namespace dev
+                '''
+                }
+            }
+
+        }
+
+stage('Deploiement en qa'){
+        environment
+        {
+        KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
+        }
+            steps {
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                ls
+                cat $KUBECONFIG > .kube/config
+                cp helm/values.yaml values.yml
+                cat values.yml
+                sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+                helm upgrade --install app helm --values=values.yml --namespace qa
+                '''
+                }
+            }
+
+        }
+stage('Deploiement en staging'){
+        environment
+        {
+        KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
+        }
+            steps {
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                ls
+                cat $KUBECONFIG > .kube/config
+                cp helm/values.yaml values.yml
+                cat values.yml
+                sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+                helm upgrade --install app helm --values=values.yml --namespace staging
+                '''
+                }
+            }
+
+        }
+  stage('Deploiement en prod'){
+        environment
+        {
+        KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
+        }
+            steps {
+            // Create an Approval Button with a timeout of 15minutes.
+            // this require a manuel validation in order to deploy on production environment
+                    timeout(time: 15, unit: "MINUTES") {
+                        input message: 'Do you want to deploy in production ?', ok: 'Yes'
+                    }
+
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                ls
+                cat $KUBECONFIG > .kube/config
+                cp helm/values.yaml values.yml
+                cat values.yml
+                sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+                helm upgrade --install app helm --values=values.yml --namespace prod
+                '''
+                }
+            }
+
+        }
+
+}
 }
