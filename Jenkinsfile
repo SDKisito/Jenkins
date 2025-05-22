@@ -98,11 +98,11 @@ users:
     client-key: /var/lib/jenkins/.kube/client.key
 EOF
 
-                    sudo chown -R jenkins:jenkins /var/lib/jenkins/.kube
-                    sudo chmod 600 /var/lib/jenkins/.kube/config
-                    sudo chmod 600 /var/lib/jenkins/.kube/client.key
-                    sudo chmod 600 /var/lib/jenkins/.kube/client.crt
-                    sudo chmod 644 /var/lib/jenkins/.kube/ca.crt
+                    chown -R jenkins:jenkins /var/lib/jenkins/.kube
+                    chmod 600 /var/lib/jenkins/.kube/config
+                    chmod 600 /var/lib/jenkins/.kube/client.key
+                    chmod 600 /var/lib/jenkins/.kube/client.crt
+                    chmod 644 /var/lib/jenkins/.kube/ca.crt
                     '''
                 }
             }
