@@ -65,7 +65,7 @@ pipeline {
                     sh """
                     rm -rf .kube
                     mkdir -p .kube
-                    echo "\$KUBECONFIG" > .kube/config
+                    cp "\$KUBECONFIG" > .kube/config
                     chmod 600 .kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
