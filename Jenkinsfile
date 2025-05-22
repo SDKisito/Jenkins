@@ -58,14 +58,12 @@ pipeline {
 
         stage('Déploiement en dev') {
             environment {
-                KUBECONFIG = credentials("config")
+                KUBECONFIG_CONTENT = credentials("config")
             }
             steps {
                 script {
+                    writeFile file: '.kube/config', text: KUBECONFIG_CONTENT
                     sh """
-                    rm -rf .kube
-                    mkdir -p .kube
-                    echo "$KUBECONFIG" > .kube/config
                     chmod 600 .kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
@@ -77,14 +75,12 @@ pipeline {
 
         stage('Déploiement en qa') {
             environment {
-                KUBECONFIG = credentials("config")
+                KUBECONFIG_CONTENT = credentials("config")
             }
             steps {
                 script {
+                    writeFile file: '.kube/config', text: KUBECONFIG_CONTENT
                     sh """
-                    rm -rf .kube
-                    mkdir -p .kube
-                    echo "\$KUBECONFIG" > .kube/config
                     chmod 600 .kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
@@ -96,14 +92,12 @@ pipeline {
 
         stage('Déploiement en staging') {
             environment {
-                KUBECONFIG = credentials("config")
+                KUBECONFIG_CONTENT = credentials("config")
             }
             steps {
                 script {
+                    writeFile file: '.kube/config', text: KUBECONFIG_CONTENT
                     sh """
-                    rm -rf .kube
-                    mkdir -p .kube
-                    echo "\$KUBECONFIG" > .kube/config
                     chmod 600 .kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
@@ -115,7 +109,7 @@ pipeline {
 
         stage('Déploiement en prod') {
             environment {
-                KUBECONFIG = credentials("config")
+                KUBECONFIG_CONTENT = credentials("config")
             }
             steps {
                 timeout(time: 15, unit: 'MINUTES') {
@@ -123,10 +117,8 @@ pipeline {
                 }
 
                 script {
+                    writeFile file: '.kube/config', text: KUBECONFIG_CONTENT
                     sh """
-                    rm -rf .kube
-                    mkdir -p .kube
-                    echo "\$KUBECONFIG" > .kube/config
                     chmod 600 .kube/config
                     cp helm/values.yaml values.yml
                     sed -i "s+tag:.*+tag: ${DOCKER_TAG}+g" values.yml
