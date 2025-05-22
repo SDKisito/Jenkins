@@ -5,8 +5,7 @@ pipeline {
         DOCKER_ID    = "salioudiedhiou"
         DOCKER_IMAGE = "jenkins_examen"
         DOCKER_TAG   = "v.${BUILD_ID}.0"
-        WIN_KUBE_PATH = "/mnt/c/Users/s.diedhiou/OneDrive - ITINOVA/Bureau/Jenkins_Examen"
-        KUBECONFIG = "${WIN_KUBE_PATH}/config"
+        KUBECONFIG   = "/var/lib/jenkins/.kube/config" // ✅ Nouveau chemin ici
     }
 
     stages {
@@ -68,7 +67,6 @@ pipeline {
         }
 
         stage("Déploiement en dev") {
-
             steps {
                 script {
                     sh '''
@@ -81,7 +79,6 @@ pipeline {
         }
 
         stage("Déploiement en QA") {
-
             steps {
                 script {
                     sh '''
